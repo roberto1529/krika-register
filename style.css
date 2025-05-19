@@ -1,0 +1,63 @@
+:root {
+    --k-primary: #e91c7a !important;
+    --k-border: 13px !important;
+}
+
+.toper{
+    margin-top: 2rem;
+}
+.logo {
+    width: 70%;
+    margin-bottom: 3.5rem;
+}
+.btn-shop{
+    background-color: var(--k-primary);
+    color: white;
+    font-weight: 600;
+}
+.title {
+    color: var(--k-primary);
+    font-size: 35px;
+    font-weight: 700;
+    padding-bottom: 1.5rem;
+    text-transform: uppercase;
+}
+.boxCuston {
+    z-index: 9999;
+    border-radius: 24px 0px 0px 24px;
+    background: white;
+    margin-left: -1rem;
+    padding-right: 2rem;
+    padding-left: 2.8rem;
+}
+.bg-custon {
+    background-image: url("http://localhost:8080/wp-content/uploads/2025/05/Group-25.jpg");
+    background-size: cover;
+    /* background-position: center; */
+}
+
+.ipCus {
+    border: 1.5px solid var(--k-primary)!important;
+    border-radius: 15px !important;
+}
+
+.btn-k {
+    display: block;
+    margin: auto;
+    background-color: var(--k-primary) !important;
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    border: none !important;
+    width: 15rem;
+    height: 50px;
+    border-radius: var(--k-border);
+}
+
+.form-check-input {
+    border: 1.4px solid var(--k-primary);
+}
+.form-check-input:checked {
+    background-color: var(--k-primary);
+    border-color: var(--k-primary);
+}
