@@ -1,5 +1,6 @@
 const { useState, useRef, useEffect } = React;
-
+// const API = 'http://192.168.12.1:3000/api/clients/create';
+const API = 'https://api-dev.krika.co/api/clients/create';
 const Formulario = () => {
   const [formData, setFormData] = useState({
     nombre: '',
@@ -20,16 +21,23 @@ const Formulario = () => {
   });
 
   const dateInputRef = useRef(null);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
   useEffect(() => {
+
     if (dateInputRef.current && window.flatpickr) {
       window.flatpickr(dateInputRef.current, {
-        dateFormat: "d-m-Y",
+        dateFormat: "Y-m-d",
         onChange: (selectedDates, dateStr) => {
           setFormData(prev => ({ ...prev, fecha_nac: dateStr }));
         }
       });
     }
+
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleChange = (e) => {
@@ -37,16 +45,122 @@ const Formulario = () => {
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isNumeric = (str) => /^\d+$/.test(str);
+  const noSpecialChars = (str) => /^[a-zA-Z\s]+$/.test(str);
+
+  const calculateAge = (fecha) => {
+    const birthDate = new Date(fecha); // No inviertas el orden
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errores = [];
+
+    const nombre = formData.nombre.trim();
+    const apellido = formData.apellido.trim();
+    const cedula = formData.cedula.trim();
+    const telefono = formData.telefono.trim();
+    const direccion = formData.direccion.trim().toUpperCase();
+    const email = formData.email.trim();
+    const edad = calculateAge(formData.fecha_nac);
+
+    // Nombre y apellido
+    if (!nombre || !noSpecialChars(nombre)) errores.push("Nombre inválido.");
+    if (!apellido || !noSpecialChars(apellido)) errores.push("Apellido inválido.");
+
+    // Cédula
+    if (!isNumeric(cedula) || cedula.length > 12) errores.push("Cédula inválida.");
+
+    // Edad
+    if (edad < 18) errores.push("Debes ser mayor de 18 años.");
+
+    // Teléfono
+    if (!isNumeric(telefono) || telefono.length === 9) errores.push("Teléfono inválido.");
+
+    // Dirección
+    const siglasValidas = tiposVia.map(via => via.sigla);
+    if (!siglasValidas.includes(direccion)) errores.push("Tipo de vía (Dirección) inválido.");
+
+    // Email
+    if (!isValidEmail(email)) errores.push("Correo electrónico inválido.");
+
+    // Checkboxes
+    if (!formData.a_t_c || !formData.a_p_d) {
+      errores.push("Debes aceptar todos los términos y condiciones.");
+    }
+
+    console.log(errores, errores.length);
+
+    if (errores.length > 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Errores en el formulario",
+        html: errores.join("<br>"),
+      });
+      return;
+    }
+
+    // Si pasa validaciones
     try {
+
+      const dataToSend = {
+        authFirebase: false,
+        authVtex: false,
+        authSiesa: true,
+        origen: "sw_web_reg",
+        formData: {
+          firstName: formData.nombre.trim(),
+          lastName: formData.apellido.trim(),
+          email: formData.email.trim(),
+          phone: formData.telefono.trim(),
+          documentType: "", // Si lo tienes
+          documentNumber: formData.cedula.trim(),
+          password: "",
+          birthDate: formData.fecha_nac, // Ya viene como "DD-MM-YYYY" si lo usas así
+          address: {
+            address: `${formData.direccion.toUpperCase()} ${formData.direccion2} ${formData.direccion3} ${formData.direccion4}`,
+            city: formData.ciudad
+          }
+        }
+      };
+
+      console.log(dataToSend);
       console.log(formData);
-      alert('Datos enviados correctamente');
-    } catch (error) {
-      console.error(error);
-      alert('Error al enviar los datos');
+      const res = await axios.post(API, dataToSend);
+
+      if (res.status == 200) {
+         console.log(res)
+          Swal.fire({
+            title: res.data.message,
+            icon: "success",
+          });
+      } else {
+          console.log(res)
+          Swal.fire({
+            title: "Error contacte al soporte tecnico de krika.",
+            icon: "info",
+          });
+      }
+
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Error al enviar los datos",
+        text: "Ocurrió un problema al enviar el formulario.",
+      });
     }
   };
+
   const ciudadesColombia = [
     "Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena",
     "Bucaramanga", "Pereira", "Santa Marta", "Manizales", "Ibagué",
@@ -161,15 +275,23 @@ const Formulario = () => {
     { sigla: "ZN", nombre: "Zona" }
   ];
 
-  const nl = 'Num/Let'
 
+  const handleSize = (s) => {
+    if (s >= 600) {
+      return 'col-3'
+    } else {
+      return 'col-6';
+    }
+  }
 
   return (
-    <div className="container-fluid">
-      <div className="row" style={{ minHeight: '100vh' }}>
-        <div className="col-8 bg-custon"></div>
+    <div className="container-fluid p-0" >
+      <div className="d-flex si-hi">
+        <div className="p-2 flex-grow-1 bg-custon">
 
-        <div className="boxCuston col-4">
+        </div>
+
+        <div className="p-8 flex-fill boxCuston">
           <div className="w-90 toper">
 
             <div className="text-center">
@@ -184,10 +306,14 @@ const Formulario = () => {
               </div>
             </div>
 
+            <div className="banner-movil">
+              <img className="Banner" src="http://localhost:8080/wp-content/uploads/2025/05/banner-landing_mobile.png" />
+            </div>
+
 
             <h4 className="mb-4 text-center mb-3 title">¡Regístrate ahora!</h4>
 
-            <form onSubmit={handleSubmit} className="row g-3">
+            <form onSubmit={handleSubmit} className="d-flex flex-wrap justify-content-between">
               <div className="col-6">
                 <div className="form-floating">
                   <input type="text" name="nombre" className="form-control ipCus" id="nombre" placeholder="Nombre" onChange={handleChange} required />
@@ -204,7 +330,7 @@ const Formulario = () => {
 
               <div className="col-6">
                 <div className="form-floating">
-                  <input type="number" name="cedula" className="form-control ipCus" min={0} maxLength={10} id="cedula" placeholder="Cédula" onChange={handleChange} required />
+                  <input type="number" name="cedula" className="form-control ipCus" min={0} maxLength={12} id="cedula" placeholder="Cédula" onChange={handleChange} required />
                   <label htmlFor="cedula">Cédula</label>
                 </div>
               </div>
@@ -217,7 +343,7 @@ const Formulario = () => {
                     className="form-control ipCus"
                     ref={dateInputRef}
                     placeholder="Selecciona una fecha"
-                    required
+
                   />
                   <label htmlFor="form-label">Fecha de Nacimiento</label>
                 </div>
@@ -225,7 +351,7 @@ const Formulario = () => {
 
               <div className="col-6">
                 <div className="form-floating">
-                  <input type="number" name="telefono" className="form-control ipCus" min={0} maxLength={12} id="cedula" placeholder="Cédula" onChange={handleChange} required />
+                  <input type="number" name="telefono" className="form-control ipCus" min={0} maxLength={10} id="cedula" placeholder="Cédula" onChange={handleChange} required />
                   <label htmlFor="cedula">Teléfono</label>
                 </div>
               </div>
@@ -242,52 +368,52 @@ const Formulario = () => {
                 </div>
               </div>
 
-              <div className="col-3">
+              <div className={handleSize(screenWidth)}>
                 <div className="form-floating">
                   <input
                     className="form-control ipCus" list="tiposViaList" id="tipoViaInput" name="direccion" placeholder="Selecciona tipo de vía" value={formData.direccion} onChange={(e) => {
                       const selected = tiposVia.find(op => op.nombre === e.target.value);
                       setFormData({ ...formData, direccion: selected ? selected.sigla : e.target.value });
                     }}
-                    required
+
                   />
                   <datalist id="tiposViaList">
                     {tiposVia.map((tipo, idx) => (
                       <option key={idx} value={tipo.nombre} />
                     ))}
                   </datalist>
-                  <label htmlFor="tipoViaInput">Dirección</label>
+                  <label htmlFor="tipoViaInput">Tipo de vía</label>
                 </div>
               </div>
 
-              <div className="col-3">
+              <div className={handleSize(screenWidth)}>
                 <div className="form-floating">
-                  <input type="number" name="telefono" className="form-control ipCus" min={0} maxLength={12} id="direccion2" placeholder="direccion2" onChange={handleChange} required />
-                  <label htmlFor="cedula">{nl}</label>
+                  <input type="number" name="direccion2" className="form-control ipCus" min={0} maxLength={12} id="direccion2" placeholder="direccion2" onChange={handleChange} required />
+                  <label htmlFor="cedula">Número principal</label>
                 </div>
               </div>
 
-              <div className="col-3">
+              <div className={handleSize(screenWidth)}>
                 <div className="form-floating">
-                  <input type="number" name="telefono" className="form-control ipCus" min={0} maxLength={12} id="direccion3" placeholder="direccion3" onChange={handleChange} required />
-                  <label htmlFor="cedula">{nl}</label>
+                  <input type="number" name="direccion3" className="form-control ipCus" min={0} maxLength={12} id="direccion3" placeholder="direccion3" onChange={handleChange} required />
+                  <label htmlFor="direccion3">Número secundario</label>
                 </div>
               </div>
 
-              <div className="col-3">
+              <div className={handleSize(screenWidth)}>
                 <div className="form-floating">
-                  <input type="number" name="telefono" className="form-control ipCus" min={0} maxLength={12} id="direccion4" placeholder="direccion4" onChange={handleChange} required />
-                  <label htmlFor="cedula">{nl}</label>
+                  <input type="number" name="direccion4" className="form-control ipCus" min={0} maxLength={12} id="direccion4" placeholder="direccion4" onChange={handleChange} required />
+                  <label htmlFor="direccion4">Número terciario</label>
                 </div>
               </div>
 
               <div className="col-12">
                 <div className="form-floating">
-                  <input type="email" name="email" className="form-control ipCus" min={0} maxLength={12} id="email" placeholder="@" onChange={handleChange} required />
+                  <input type="email" name="email" className="form-control ipCus" id="email" placeholder="@" onChange={handleChange} required />
                   <label htmlFor="cedula">Correo</label>
                 </div>
               </div>
-
+              <br /><br /><br />
               <div className="col-12">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" value="" id="checkDefault" name="a_t_c" onChange={handleChange} required />
@@ -308,13 +434,13 @@ const Formulario = () => {
 
               <div className="col-12">
                 <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="" id="checkDefault" name="newle" onChange={handleChange} required />
+                  <input class="form-check-input" type="checkbox" value="" id="checkDefault" name="newle" onChange={handleChange} />
                   <label class="form-check-label" for="checkDefault">
                     Quiero recibir el newsletter con promociones
                   </label>
                 </div>
               </div>
-
+              <br /><br /><br />
               <div className="col-12">
                 <button type="submit" className="btn btn-primary btn-k">Enviar</button>
               </div>
